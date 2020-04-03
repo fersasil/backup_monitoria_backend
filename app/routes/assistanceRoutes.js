@@ -8,7 +8,9 @@ const router = express.Router();
 
 router.get('/assistance', controller.getAll);
 
-router.get('/assistance/:id', controller.getByID);
+router.get('/assistance/id/:id', controller.getByID);
+
+router.get('/assistance/name/:name', controller.getByName);
 
 
 module.exports = router;
