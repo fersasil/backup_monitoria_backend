@@ -4,7 +4,10 @@ module.exports = class {
     #_from = "";
     #_data = {};
     querySQL = "$_e1g $_e2g $_e3g $_e4g $_e5g $_e6g $_e7g";
-
+    #whereCount = 0;
+    #orCount = 0;
+    #andCount = 0;
+    #likeCount = 0;
 
     constructor(tableName) {
         if (tableName != null)
@@ -56,18 +59,73 @@ module.exports = class {
         let ope = args[2];
 
         if (args.length == 1) {
-            const parameters = args[0].split("=");
-            const argsSplited = parameters.map((val) => val.trim());
+            if (args[0].search("=") >= 0) {
+                const parameters = key.split("=");
+                const argsSplited = parameters.map((val) => val.trim());
 
-            key = argsSplited[0];
-            val = argsSplited[1];
+                key = argsSplited[0];
+                val = argsSplited[1];
+            }
+            else {
+                where = `WHERE ${key} $_e4.1g`;
+                this.querySQL = this.querySQL.replace("$_e4g", where);
+                return this;
+            }
         }
 
-        where = `WHERE ${key} ${ope ? ope : '='} ?`;
-        this.#_data.where = val;
+        where = `WHERE (${key} = :where${this.#whereCount}) $_e4.1g `;
+        this.#_data.where = { [`where${this.#whereCount++}`]: val };
 
         this.querySQL = this.querySQL.replace("$_e4g", where);
 
+        return this;
+    }
+
+    or(...args) {
+        let or;
+
+        if (args.length == 2) {
+            or = `OR (${args[0]} = :or${this.#orCount}) $_e4.1g `;
+
+            if (this.#_data.or == undefined)
+                this.#_data.or = { [`or${this.#orCount++}`]: args[1] };
+            else {
+                this.#_data.or = Object.assign({}, this.#_data.or, {[`or${this.#orCount++}`]: args[1]});
+            }
+        }
+        else {
+            or = `OR (${args[0]} $_e4.1g)`;
+        }
+        
+        this.querySQL = this.querySQL.replace("$_e4.1g", or);
+
+        return this;
+    }
+
+    and(...args) {
+        let and;
+
+        if (args.length == 2) {
+            and = `AND (${args[0]} = :and${this.#andCount}) $_e4.1g `;
+
+            if (this.#_data.and == undefined)
+                this.#_data.and = { [`and${this.#andCount++}`]: args[1] };
+            else {
+                this.#_data.and = Object.assign({}, this.#_data.and, {[`and${this.#andCount++}`]: args[1]});
+            }
+        }
+        else {
+            and = `AND (${args[0]} $_e4.1g)`;
+        }
+        
+        this.querySQL = this.querySQL.replace("$_e4.1g", and);
+
+        return this;
+    }
+
+    like(pattern){
+        const like = `LIKE '${pattern}'`;
+        this.querySQL = this.querySQL.replace("$_e4.1g", like);
         return this;
     }
 
@@ -134,7 +192,7 @@ module.exports = class {
     insert(tableName = null, ...args) {
         let insert;
 
-        const placeholders = args.map((val) => "?, ").join("").slice(0, -2);
+        const placeholders = args.map((val, i) => `:insert${i}, `).join("").slice(0, -2);
 
         insert = placeholders;
 
@@ -142,7 +200,13 @@ module.exports = class {
 
         insert = `INSERT INTO ${tableName} VALUES (${insert})`;
 
-        this.#_data.insert = args;
+        const argsObjectList = args.map((val, i) => {
+            return {
+                [`:insert${i}`]: val
+            }
+        });
+
+        this.#_data.insert = Object.assign({}, ...argsObjectList);
 
         this.querySQL = this.querySQL.replace("$_e1g", insert);
 
@@ -161,9 +225,13 @@ module.exports = class {
     insertInto(tableName = null, args) {
         const fieldNames = Object.keys(args);
 
-        const valuesArray = fieldNames.map((field) => args[field]);
 
-        const placeholders = valuesArray.map((_) => "?, ").join("").slice(0, -2);
+        const insertDataObject = fieldNames.map((field, i) => {
+            return { [`insert${i}`]: args[field] }
+        });
+
+        const placeholders = insertDataObject.map((_, i) => `:insert${i}, `).join("").slice(0, -2);
+
 
         const valuesString = fieldNames.map(name => `${name}, `).join("").slice(0, -2);
 
@@ -171,7 +239,7 @@ module.exports = class {
 
         const insert = `INSERT INTO ${tableName} (${valuesString}) VALUES (${placeholders})`;
 
-        this.#_data.insert = valuesArray;
+        this.#_data.insert = Object.assign({}, ...insertDataObject);
 
         this.querySQL = this.querySQL.replace("$_e1g", insert);
 
@@ -213,6 +281,7 @@ module.exports = class {
      * @param {String} tableName nome da tabela
      * @param {Object} args nome campo a ser atualizado e seu novo valor. PS: o nome do campo
      * deve ser o mesmo no do banco
+     * @example update("tag", {tag_name: newName})
      * @description Be careful when updating records in a table! 
      * Notice the WHERE clause in the UPDATE statement.
      * The WHERE clause specifies which record(s) that should be updated. 
@@ -221,9 +290,11 @@ module.exports = class {
     update(tableName = null, args) {
         const fieldNames = Object.keys(args);
 
-        const setQuery = fieldNames.map((field) => `${field} = ?, `).join("").slice(0, -2);
+        const setQuery = fieldNames.map((field, i) => `${field} = :update${i}, `).join("").slice(0, -2);
 
-        const valuesArray = fieldNames.map((field) => args[field]);
+        const valuesArray = fieldNames.map((field, i) => {
+            return { [`update${i}`]: args[field] }
+        });
 
         if (tableName == null) tableName = this.#_from;
 
@@ -231,7 +302,7 @@ module.exports = class {
 
         this.querySQL = this.querySQL.replace("$_e1g", updateQuery);
 
-        this.#_data.update = valuesArray;
+        this.#_data.update = Object.assign({}, ...valuesArray);
 
         return this;
     }
@@ -241,20 +312,26 @@ module.exports = class {
         this.querySQL = this.querySQL.replace("$_e2g", "");
         this.querySQL = this.querySQL.replace("$_e3g", "");
         this.querySQL = this.querySQL.replace("$_e4g", "");
+        this.querySQL = this.querySQL.replace("$_e4.1g", "");
         this.querySQL = this.querySQL.replace("$_e5g", "");
         this.querySQL = this.querySQL.replace("$_e6g", "");
         this.querySQL = this.querySQL.replace("$_e7g", "");
 
         const sql = this.querySQL;
 
-        const args = [];
+        const data = this.#_data;
 
-        if (this.#_data.insert !== undefined) args.push(...this.#_data.insert);
-        if (this.#_data.update !== undefined) args.push(...this.#_data.update);
+        // if (this.#_data.insert !== undefined) args.push(...this.#_data.insert);
+        // if (this.#_data.update !== undefined) args.push(...this.#_data.update);
 
-        if (this.#_data.where !== undefined) args.push(this.#_data.where);
+        // if (this.#_data.where !== undefined) args.push(this.#_data.where);
+
+        const args = { ...data.insert, ...data.update, ...data.where, ...data.or, ...data.and}
 
         this.clearQuery();
+
+        console.log(sql);
+
 
         console.log(sql)
         return this.query(sql, args);
@@ -269,13 +346,12 @@ module.exports = class {
 
             try {
                 conn = await pool.getConnection();
-                const rows = await conn.query(queryStr, queryVar);
+                const rows = await conn.query({ sql: queryStr, namedPlaceholders: true }, queryVar);
 
                 conn.end();
                 resolve(rows);
             } catch (err) {
                 conn.end();
-                // console.log(err);
                 // throw err;
                 if (reject) reject(err);
                 //TODO: implementar o helper de erro e o utilizar
@@ -288,6 +364,10 @@ module.exports = class {
         this.querySQL = "$_e1g $_e2g $_e3g $_e4g $_e5g $_e6g $_e7g";
         this.#_data = {};
         this.#_from = "";
+        this.#whereCount = 0;
+        this.#orCount = 0;
+        this.#andCount = 0;
+        this.#likeCount = 0;
     }
 
     clearTableName() {

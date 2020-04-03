@@ -13,4 +13,17 @@ router.get('/assistance/id/:id', controller.getByID);
 router.get('/assistance/name/:name', controller.getByName);
 
 
+router.get('/a', async (req, res, next) => {
+    const dbHelper = require("../helpers/dbHelper");
+    const db = new dbHelper();
+    const a = await db.update("tag", {
+        tag_name: "Guiaaa",
+        tag_description: "Teste teste teste"
+    })
+    .where("tag_id", 1)
+    .resolve();
+
+    res.json(a);
+});
+
 module.exports = router;

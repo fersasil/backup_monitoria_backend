@@ -5,5 +5,5 @@ module.exports = mariadb.createPool({
     host: '131.108.55.50',
     user: 'patrick',
     password: 'patrick',
-    database: 'myDB',
+    database: 'myDB_test',
 });
