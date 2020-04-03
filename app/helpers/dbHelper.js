@@ -25,7 +25,7 @@ module.exports = class {
         return this;
     }
 
-    
+
     /**
      * @param {string} [string=""] nome da tabela que sera comparada.
      * Pode ser deixado em branco caso a classe seja instanciada
@@ -53,8 +53,9 @@ module.exports = class {
         let where;
         let key = args[0];
         let val = args[1];
+        let ope = args[2];
 
-        if (args.length == 1){
+        if (args.length == 1) {
             const parameters = args[0].split("=");
             const argsSplited = parameters.map((val) => val.trim());
 
@@ -62,9 +63,9 @@ module.exports = class {
             val = argsSplited[1];
         }
 
-        where = `WHERE ${key} = ?`;
+        where = `WHERE ${key} ${ope ? ope : '='} ?`;
         this.#_data.where = val;
-        
+
         this.querySQL = this.querySQL.replace("$_e4g", where);
 
         return this;
@@ -137,7 +138,7 @@ module.exports = class {
 
         insert = placeholders;
 
-        if(tableName == null) tableName = this.#_from;
+        if (tableName == null) tableName = this.#_from;
 
         insert = `INSERT INTO ${tableName} VALUES (${insert})`;
 
@@ -166,7 +167,7 @@ module.exports = class {
 
         const valuesString = fieldNames.map(name => `${name}, `).join("").slice(0, -2);
 
-        if(tableName == null) tableName = this.#_from;
+        if (tableName == null) tableName = this.#_from;
 
         const insert = `INSERT INTO ${tableName} (${valuesString}) VALUES (${placeholders})`;
 
@@ -189,23 +190,23 @@ module.exports = class {
     delete(tableName = null) {
         let deleteQuery;
 
-        if(tableName == null){
+        if (tableName == null) {
             deleteQuery = `DELETE $_e1g`;
 
-            if(this.#_from != "")
+            if (this.#_from != "")
                 deleteQuery = deleteQuery.replace("$_e1g", `FROM ${this.#_from}`);
         }
-        
+
         else {
-            deleteQuery = `DELETE FROM ${tableName}`; 
+            deleteQuery = `DELETE FROM ${tableName}`;
         }
-        
+
         this.querySQL = this.querySQL.replace("$_e1g", deleteQuery);
 
         return this;
     }
 
-    
+
     /**
      *
      *
@@ -217,15 +218,15 @@ module.exports = class {
      * The WHERE clause specifies which record(s) that should be updated. 
      * If you omit the WHERE clause, all records in the table will be updated!
      */
-    update(tableName = null, args){
+    update(tableName = null, args) {
         const fieldNames = Object.keys(args);
 
-        const setQuery = fieldNames.map((field) => `${field} = ?, `).join("").slice(0, -2); 
+        const setQuery = fieldNames.map((field) => `${field} = ?, `).join("").slice(0, -2);
 
         const valuesArray = fieldNames.map((field) => args[field]);
-        
-        if(tableName == null) tableName = this.#_from;
-        
+
+        if (tableName == null) tableName = this.#_from;
+
         const updateQuery = ` UPDATE ${tableName} SET ${setQuery}`;
 
         this.querySQL = this.querySQL.replace("$_e1g", updateQuery);
@@ -250,12 +251,12 @@ module.exports = class {
 
         if (this.#_data.insert !== undefined) args.push(...this.#_data.insert);
         if (this.#_data.update !== undefined) args.push(...this.#_data.update);
-        
+
         if (this.#_data.where !== undefined) args.push(this.#_data.where);
-        
+
         this.clearQuery();
 
-
+        console.log(sql)
         return this.query(sql, args);
     }
 
@@ -289,11 +290,11 @@ module.exports = class {
         this.#_from = "";
     }
 
-    clearTableName(){
+    clearTableName() {
         this.#_from = "";
     }
 
-    setTableName(tableName){
+    setTableName(tableName) {
         this.#_from = tableName;
     }
 }
