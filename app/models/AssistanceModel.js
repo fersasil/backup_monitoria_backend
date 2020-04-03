@@ -78,7 +78,7 @@ module.exports = class {
     * @returns {assistance} returns an assistance 
     */
   static async getByName(params) {
-    let select = params.fields != 'all' ? params.fields : `
+    let select = params.fields ? params.fields : `
     a.*,
     tag.tag_name, 
     tag.tag_description,
